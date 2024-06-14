@@ -49,6 +49,12 @@ class ExplainableTree(ABC):
     def extend(self, data, clustering, centers, present_labels, cut):
         k = centers.shape[0]
         if k == 1:
+            center = np.sum(data, axis=0) / data.shape[0]
+            cost = np.sum(np.linalg.norm(data - center, axis=1) ** 2)
+
+            self.cost += cost
+            self.centers[self.k, :] = center
+            self.k += 1 
             return
         
         _, coordinate, threshold = self.single_partition(data, clustering, centers, k, present_labels)
@@ -79,6 +85,8 @@ class ExplainableTree(ABC):
 
     def train(self, data, clustering, centers):
         k = centers.shape[0]
+        self.centers = np.zeros_like(centers)
+        self.k, self.cost = 0, 0
         self.extend(data, clustering, centers, np.arange(k), self.tree.root)
 
 class Spectral(ExplainableTree):
@@ -93,11 +101,6 @@ class Spectral(ExplainableTree):
         num_of_labels = u.size # since the tree is build recursively, data separated from it's cluster will not have a cluster present.        
         mapping = dict(zip(u.tolist(), range(num_of_labels))) # since the tree is built recursively, a numbering 0,1,... is not guaranteed.
                                                               # clusters_count[i] = num of samples in cluster mapping[i]
-        print(u)
-        print(n)
-        print(k)
-        print(mapping)
-        # center_indices = np.array([m for m in range(k)])
         
         for i in range(d):
             data_ordering = data[:,i].argsort()
@@ -133,20 +136,21 @@ class Spectral(ExplainableTree):
                 if ratio < best_ratio:
                     coordinate, threshold = i, curr_col[j]
                     best_ratio = ratio
-        print(best_ratio, coordinate, threshold)
+        #print(best_ratio, coordinate, threshold)
         return best_ratio, coordinate, threshold
     
 class IMM(ExplainableTree):
-    def single_partition(self, data, clustering, centers, k):
+    def single_partition(self, data, clustering, centers, k, present_labels):
         assert k > 1
 
         n = data.shape[0] # num of samples
         d = data.shape[1] # dimension of data
-        best_ratio = np.inf # Mistakes
+        best_ratio = np.inf # mistakes
         coordinate, threshold = 0, np.NINF 
-        clusters_count = np.bincount(clustering) # clusters_count[i] = num of samples in cluster i
-        
-        center_indices = np.array([m for m in range(k)])
+        u, clusters_count = np.unique(clustering, return_counts=True)
+        num_of_labels = u.size # since the tree is build recursively, data separated from it's cluster will not have a cluster present.        
+        mapping = dict(zip(u.tolist(), range(num_of_labels))) # since the tree is built recursively, a numbering 0,1,... is not guaranteed.
+                                                              # clusters_count[i] = num of samples in cluster mapping[i]
         
         for i in range(d):
             data_ordering = data[:,i].argsort()
@@ -154,49 +158,48 @@ class IMM(ExplainableTree):
             curr_col = data[data_ordering, i]
             clustering_ordered = clustering[data_ordering]
             centers_ordered = centers[centers_ordering]
-            indices_ordered = center_indices[centers_ordering]
+            indices_ordered = present_labels[centers_ordering]
 
             centers_threshold = -1 # final center (ordered by i'th coordinate) that is to the left of the cut.
-            samples_location = np.zeros(k) # samples_location[i] = number of samples that belongs to cluster i in left side of cut.
+            samples_location = np.zeros(num_of_labels) # samples_location[i] = number of samples that belongs to cluster mapping[i] in left side of cut.
             
             for j in range(n):
-                mistakes = 0
-
-                samples_location[clustering_ordered[j]] += 1 # x_j was moved to the left side of the cut.
+                samples_location[mapping[clustering_ordered[j]]] += 1 # x_j was moved to the left side of the cut.
                 while centers_threshold < k-1 and centers_ordered[centers_threshold+1, i] <= curr_col[j]:
                     centers_threshold += 1
                 
                 if centers_threshold >= 0:
-                    left_side_clusters = indices_ordered[:centers_threshold+1]
-                    mistakes += np.sum((clusters_count-samples_location)[left_side_clusters])
+                    left_side_clusters = [mapping[c] for c in indices_ordered[:centers_threshold+1]] # This sucks
+                    C1 = np.sum(samples_location[left_side_clusters]) 
                 else:
-                    mistakes += np.sum(samples_location)
+                    continue
 
                 if centers_threshold < k-1:
-                    right_side_clusters = indices_ordered[centers_threshold+1:]
-                    mistakes += np.sum(samples_location[right_side_clusters])
+                    right_side_clusters = [mapping[c] for c in indices_ordered[centers_threshold+1:]] # This sucks
+                    C2 = np.sum((clusters_count-samples_location)[right_side_clusters]) 
                 else:
-                    mistakes += np.sum(clusters_count-samples_location)
-
-                ratio = mistakes
+                    continue
+                
+                ratio = n-C1-C2
                 
                 if ratio < best_ratio:
                     coordinate, threshold = i, curr_col[j]
                     best_ratio = ratio
-
+        #print(best_ratio, coordinate, threshold)
         return best_ratio, coordinate, threshold
     
 class EMN(ExplainableTree):
-    def single_partition(self, data, clustering, centers, k):
+    def single_partition(self, data, clustering, centers, k, present_labels):
         assert k > 1
 
         n = data.shape[0] # num of samples
         d = data.shape[1] # dimension of data
-        best_ratio = np.inf # Mistakes / min{clusters on the right, clusters on the left}
+        best_ratio = np.inf # mistakes
         coordinate, threshold = 0, np.NINF 
-        clusters_count = np.bincount(clustering) # clusters_count[i] = num of samples in cluster i
-        
-        center_indices = np.array([m for m in range(k)])
+        u, clusters_count = np.unique(clustering, return_counts=True)
+        num_of_labels = u.size # since the tree is build recursively, data separated from it's cluster will not have a cluster present.        
+        mapping = dict(zip(u.tolist(), range(num_of_labels))) # since the tree is built recursively, a numbering 0,1,... is not guaranteed.
+                                                              # clusters_count[i] = num of samples in cluster mapping[i]
         
         for i in range(d):
             data_ordering = data[:,i].argsort()
@@ -204,37 +207,33 @@ class EMN(ExplainableTree):
             curr_col = data[data_ordering, i]
             clustering_ordered = clustering[data_ordering]
             centers_ordered = centers[centers_ordering]
-            indices_ordered = center_indices[centers_ordering]
+            indices_ordered = present_labels[centers_ordering]
 
             centers_threshold = -1 # final center (ordered by i'th coordinate) that is to the left of the cut.
-            samples_location = np.zeros(k) # samples_location[i] = number of samples that belongs to cluster i in left side of cut.
+            samples_location = np.zeros(num_of_labels) # samples_location[i] = number of samples that belongs to cluster mapping[i] in left side of cut.
             
             for j in range(n):
-                mistakes = 0
-
-                samples_location[clustering_ordered[j]] += 1 # x_j was moved to the left side of the cut.
+                samples_location[mapping[clustering_ordered[j]]] += 1 # x_j was moved to the left side of the cut.
                 while centers_threshold < k-1 and centers_ordered[centers_threshold+1, i] <= curr_col[j]:
                     centers_threshold += 1
                 
                 if centers_threshold >= 0:
-                    left_side_clusters = indices_ordered[:centers_threshold+1]
-                    mistakes += np.sum((clusters_count-samples_location)[left_side_clusters])
+                    left_side_clusters = [mapping[c] for c in indices_ordered[:centers_threshold+1]] # This sucks
+                    C1 = np.sum(samples_location[left_side_clusters]) 
                 else:
-                    mistakes += np.sum(samples_location)
+                    continue
 
                 if centers_threshold < k-1:
-                    right_side_clusters = indices_ordered[centers_threshold+1:]
-                    mistakes += np.sum(samples_location[right_side_clusters])
+                    right_side_clusters = [mapping[c] for c in indices_ordered[centers_threshold+1:]] # This sucks
+                    C2 = np.sum((clusters_count-samples_location)[right_side_clusters]) 
                 else:
-                    mistakes += np.sum(clusters_count-samples_location)
-
-                l_clusters_count = centers_threshold + 2
-                r_clusters_count = k - l_clusters_count
-                ratio = mistakes / min(l_clusters_count, r_clusters_count)
+                    continue
+                
+                ratio = (n-C1-C2) / min(len(left_side_clusters), len(right_side_clusters))
                 
                 if ratio < best_ratio:
                     coordinate, threshold = i, curr_col[j]
                     best_ratio = ratio
-
+        #print(best_ratio, coordinate, threshold)
         return best_ratio, coordinate, threshold
     
