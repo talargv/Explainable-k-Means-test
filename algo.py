@@ -1,17 +1,45 @@
 from abc import ABC, abstractmethod
 
+from collections import deque
+
 import numpy as np
 
 class Cut():
-    def __init__(self, coordinate = 0, threshold = np.inf, left = None, right = None):
+    def __init__(self, coordinate = 0, threshold = np.inf, left = None, right = None, cluster = -1):
         self.coordinate = coordinate
         self.threshold = threshold
         self.left = left
         self.right = right
+        self.cluster = cluster
+
+    def __repr__(self):
+        return f"({self.coordinate}, {self.threshold:.2f})"
 
 class Tree():
     def __init__(self):
         self.root = Cut()
+
+    def print_structure(self):
+        curr_layer, next_layer = 1, 0
+        q = deque()
+
+        q.append(self.root)        
+        while q:
+            cut = q.popleft()
+            
+            if cut == None:
+                print('N', end=' ')
+            else:
+                print(cut, end=' ')
+                next_layer += 2
+                q.append(cut.left)
+                q.append(cut.right)
+
+            curr_layer -= 1
+            if curr_layer == 0:
+                print('')
+                curr_layer = next_layer
+                next_layer = 0
 
 class ExplainableTree(ABC):
     def __init__(self):

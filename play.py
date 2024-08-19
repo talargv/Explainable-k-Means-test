@@ -167,12 +167,20 @@ def experiment_k(n_runs):
         c_avgs[l] = np.sum(c_values) / n_runs
         prices_avgs[:,l] = np.sum(prices, axis=1) / n_runs
 
-    _, axes = plt.subplots(nrows=1, ncols=3, figsize=(30,15))
-    axes[0].plot(k_list, prices_avgs[0,:], color="red") #IMM
-    axes[0].plot(k_list, prices_avgs[1,:], color="blue") #Spectral
-    axes[0].plot(k_list, prices_avgs[2,:], color="green") #EMN
-    axes[1].plot(k_list, s_avgs)
-    axes[2].plot(k_list, c_avgs)
+    #_, axes = plt.subplots(nrows=1, ncols=3, figsize=(30,15))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(30,15))
+    axes[0].plot(k_list, prices_avgs[0,:], 'o-', color="red", label="IMM") #IMM
+    axes[0].plot(k_list, prices_avgs[1,:], 'o-', color="blue", label="Spectral") #Spectral
+    axes[0].plot(k_list, prices_avgs[2,:], 'o-', color="green", label="EMN") #EMN
+    axes[0].set_title("Ratio of tree cost to k-Cost")
+    axes[0].legend()
+    axes[0].set_xlabel("k")
+    axes[0].set_ylabel("Ratio")
+    axes[1].plot(k_list, s_avgs, 'o-')
+    axes[1].set_title("Silhouette score of k-Means")
+    axes[1].set_xlabel("k")
+    axes[1].set_ylabel("Sillhouette Score")
+    #axes[2].plot(k_list, c_avgs)
 
     plt.show()
 
@@ -180,9 +188,9 @@ def experiment_std(n_runs):
     models = [IMM, Spectral, EMN]
     NUM_OF_MODELS = len(models)
     seed = None
-    k = 20
-    box = (-5, 5) # The range of the coordinates of the centers
-    std_list = [10,5,2,1,0.5] # Variance
+    k = 10
+    box = (-10, 10) # The range of the coordinates of the centers
+    std_list = [20,15,10,5,1] # Variance
     n_samples = 4000
     dimension = 10
 
@@ -214,13 +222,27 @@ def experiment_std(n_runs):
         c_avgs[l] = np.sum(c_values) / n_runs
         prices_avgs[:,l] = np.sum(prices, axis=1) / n_runs
 
-    _, axes = plt.subplots(nrows=1, ncols=3, figsize=(30,15))
-    axes[0].plot(std_list, prices_avgs[0,:], color="red") #IMM
+    #_, axes = plt.subplots(nrows=1, ncols=3, figsize=(30,15))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(30,15))
+    """axes[0].plot(std_list, prices_avgs[0,:], color="red") #IMM
     axes[0].plot(std_list, prices_avgs[1,:], color="blue") #Spectral
     axes[0].plot(std_list, prices_avgs[2,:], color="green") #EMN
     axes[1].plot(std_list, s_avgs)
-    axes[2].plot(std_list, c_avgs)
+    axes[2].plot(std_list, c_avgs)"""
+
+    axes[0].plot(std_list, prices_avgs[0,:], 'o-', color="red", label="IMM") #IMM
+    axes[0].plot(std_list, prices_avgs[1,:], 'o-', color="blue", label="Spectral") #Spectral
+    axes[0].plot(std_list, prices_avgs[2,:], 'o-', color="green", label="EMN") #EMN
+    axes[0].set_title("Ratio of tree cost to k-Cost")
+    axes[0].legend()
+    axes[0].set_xlabel("Variance")
+    axes[0].set_ylabel("Ratio")
+    axes[1].plot(std_list, s_avgs, 'o-')
+    axes[1].set_title("Silhouette score of k-Means")
+    axes[1].set_xlabel("Variance")
+    axes[1].set_ylabel("Sillhouette Score")
 
     plt.show()
 
-experiment_std(15)
+if __name__ == "__main__":
+    experiment_std(15)
