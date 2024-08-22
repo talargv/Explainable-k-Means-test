@@ -38,10 +38,11 @@ class ExplainableGraphBased():
                 while j < n-1 and data[data_ordering[j], i] == threshold:
                     left_weight = np.sum(graph[data_ordering[j], data_ordering[:j]])
                     right_weight = np.sum(graph[data_ordering[j], data_ordering[j+1:]])
+                    total_neighbors = left_weight + right_weight
 
                     cut_size += right_weight - left_weight
-                    deg_left += left_weight * 2
-                    deg_right -= right_weight * 2
+                    deg_left += total_neighbors
+                    deg_right -= total_neighbors
 
                     j += 1
 
@@ -128,4 +129,4 @@ def get_nearest_neighbors(data, n_neighbors):
 
     mat = nbrs.kneighbors_graph() # This is a sparse CSR matrix. do toarray() if something goes wrong???
     return mat + mat.T
-        
+    

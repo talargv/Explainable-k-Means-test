@@ -34,9 +34,9 @@ def train_and_plot(data, n_neighbors, k):
     
 def generate_data(k):
     seed = None
-    box = (-5, 5) # The range of the coordinates of the centers
-    std = 0.2 # Variance
-    n_samples = 30
+    box = (-15, 15) # The range of the coordinates of the centers
+    std = 1 # Variance
+    n_samples = 3000
     dimension = 2
 
     data, _ = make_blobs(n_samples=n_samples, centers=k, cluster_std=std,
@@ -44,5 +44,5 @@ def generate_data(k):
     
     return data
 
-data = generate_data(3)
-train_and_plot(data, 5, 3)
+data = generate_data(50)
+train_and_plot(data, 10, 50)
