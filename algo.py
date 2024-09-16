@@ -90,6 +90,7 @@ class ExplainableTree(ABC):
         num_of_labels = u.size # since the tree is build recursively, data separated from it's cluster will not have a cluster present.        
         mapping = dict(zip(u.tolist(), range(num_of_labels))) # since the tree is built recursively, a numbering 0,1,... is not guaranteed.
                                                               # clusters_count[i] = num of samples in cluster mapping[i]
+        centerless_count = sum(clusters_count[mapping[c]] for c in u if not c in present_labels)
         
         for i in range(d):
             data_ordering = data[:,i].argsort()
@@ -101,27 +102,31 @@ class ExplainableTree(ABC):
 
             centers_threshold = -1 # final center (ordered by i'th coordinate) that is to the left of the cut.
             samples_location = np.zeros(num_of_labels) # samples_location[i] = number of samples that belongs to cluster mapping[i] in left side of cut.
+            centerless_left, centerless_right = 0, centerless_count
             
             for j in range(n):
                 samples_location[mapping[clustering_ordered[j]]] += 1 # x_j was moved to the left side of the cut.
+                if not clustering_ordered[j] in present_labels:
+                    centerless_left += 1
+                    centerless_right -= 1
                 while centers_threshold < k-1 and centers_ordered[centers_threshold+1, i] <= curr_col[j]:
                     centers_threshold += 1
                 
                 if centers_threshold >= 0:
                     left_side_clusters = [mapping[c] for c in indices_ordered[:centers_threshold+1]] # This sucks
-                    l_correct = np.sum(samples_location[left_side_clusters]) 
+                    l_correct = np.sum(samples_location[left_side_clusters])  
                 else:
                     continue
 
                 if centers_threshold < k-1:
                     right_side_clusters = [mapping[c] for c in indices_ordered[centers_threshold+1:]] # This sucks
-                    r_correct = np.sum((clusters_count-samples_location)[right_side_clusters]) 
+                    r_correct = np.sum((clusters_count-samples_location)[right_side_clusters])
                 else:
                     continue
 
                 l_centers, r_centers = len(left_side_clusters), len(right_side_clusters)
 
-                ratio = self.metric(n, l_correct, r_correct, l_centers, r_centers)
+                ratio = self.metric(n, l_correct + centerless_left, r_correct + centerless_right, l_centers, r_centers)
                 
 
                 if ratio < best_ratio:

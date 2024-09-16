@@ -245,4 +245,18 @@ def experiment_std(n_runs):
     plt.show()
 
 if __name__ == "__main__":
-    experiment_std(15)
+    seed = None
+    k = 50
+    box = (-5, 5) # The range of the coordinates of the centers
+    std = 1 # Variance
+    n_samples = 4000
+    dimension = 2
+
+    data, _, centers = make_blobs(n_samples=n_samples, centers=k, cluster_std=std,
+                                                    random_state=seed, return_centers=True, n_features=dimension, center_box=box)
+    model = KMeans(n_clusters = k, init = centers).fit(data)
+
+    clustering = model.labels_
+    centers = model.cluster_centers_
+
+    train_and_plot(data, clustering, centers)
